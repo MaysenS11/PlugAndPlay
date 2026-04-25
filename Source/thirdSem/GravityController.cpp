@@ -29,7 +29,7 @@ void AGravityController::UpdateRotation(float DeltaTime)
  
 	// Convert the view rotation from world space to gravity relative space.
 	// Now we can work with the rotation as if no custom gravity was affecting it.
-	ViewRotation = GetGravityRelativeRotation(ViewRotation, GravityDirection);
+	FRotator GravityRelativeViewRotation = GetGravityRelativeRotation(ViewRotation, GravityDirection);
  
 	// Calculate Delta to be applied on ViewRotation
 	FRotator DeltaRot(RotationInput);
@@ -38,13 +38,14 @@ void AGravityController::UpdateRotation(float DeltaTime)
 	{
 		ACharacter* PlayerCharacter = Cast<ACharacter>(GetPawn());
  
-		PlayerCameraManager->ProcessViewRotation(DeltaTime, ViewRotation, DeltaRot);
+		PlayerCameraManager->ProcessViewRotation(DeltaTime, GravityRelativeViewRotation, DeltaRot);
  
 		// Zero the roll of the camera as we always want it horizontal in relation to the gravity.
-		ViewRotation.Roll = 0;
+		GravityRelativeViewRotation.Roll = 0;
  
 		// Convert the rotation back to world space, and set it as the current control rotation.
-		SetControlRotation(GetGravityWorldRotation(ViewRotation, GravityDirection));
+		ViewRotation = GetGravityWorldRotation(GravityRelativeViewRotation, GravityDirection);
+		SetControlRotation(ViewRotation);
 	}
  
 	APawn* const P = GetPawnOrSpectator();
@@ -56,7 +57,8 @@ void AGravityController::UpdateRotation(float DeltaTime)
  
 FRotator AGravityController::GetGravityRelativeRotation(FRotator Rotation, FVector GravityDirection)
 {
-	if (!GravityDirection.Equals(FVector::DownVector))
+	const float Tolerance = 1e-6f;
+	if (!GravityDirection.Equals(FVector::DownVector, Tolerance))
 	{
 		FQuat GravityRotation = FQuat::FindBetweenNormals(GravityDirection, FVector::DownVector);
 		return (GravityRotation * Rotation.Quaternion()).Rotator();
